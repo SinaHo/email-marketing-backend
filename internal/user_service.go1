@@ -1,0 +1,70 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/SinaHo/email-marketing-backend/internal/model"
+	"github.com/SinaHo/email-marketing-backend/internal/repository"
+)
+
+var (
+	ErrInvalidEmail = errors.New("invalid email address")
+)
+
+// UserService defines business methods for users.
+type UserService interface {
+	CreateUser(ctx context.Context, name, email string) (*model.User, error)
+	GetUser(ctx context.Context, id string) (*model.User, error)
+	ListUsers(ctx context.Context, pageSize, pageNumber int32) ([]*model.User, error)
+	DeleteUser(ctx context.Context, id string) error
+}
+
+// userServiceImpl is a concrete implementation of UserService.
+type userServiceImpl struct {
+	repo repository.UserRepository
+}
+
+// NewUserService constructs a UserService with the given repository.
+func NewUserService(repo repository.UserRepository) UserService {
+	return &userServiceImpl{repo: repo}
+}
+
+// validateEmail is a placeholder for real email validation.
+func validateEmail(email string) bool {
+	// simplistic check; replace with regex if needed
+	return len(email) >= 3 && len(email) <= 254 && (string(email[len(email)-1]) != "@")
+}
+
+// CreateUser creates a new user, ensuring email is valid.
+func (s *userServiceImpl) CreateUser(ctx context.Context, name, email string) (*model.User, error) {
+	if name == "" {
+		return nil, errors.New("name cannot be empty")
+	}
+	if !validateEmail(email) {
+		return nil, ErrInvalidEmail
+	}
+	now := time.Now().UTC()
+	u := &model.User{
+		Name:      name,
+		Email:     email,
+		CreatedAt: now,
+	}
+	return s.repo.Create(ctx, u)
+}
+
+// GetUser retrieves a user by ID.
+func (s *userServiceImpl) GetUser(ctx context.Context, id string) (*model.User, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
+// ListUsers returns a paginated list of users.
+func (s *userServiceImpl) ListUsers(ctx context.Context, pageSize, pageNumber int32) ([]*model.User, error) {
+	return s.repo.List(ctx, pageSize, pageNumber)
+}
+
+// DeleteUser deletes a user by ID.
+func (s *userServiceImpl) DeleteUser(ctx context.Context, id string) error {
+	return s.repo.Delete(ctx, id)
+}

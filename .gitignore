@@ -1,0 +1,37 @@
+# macOS
+**/.DS_Store
+
+# Dev build
+build/
+tmp/
+
+# Test
+*.out
+
+# Environment variables
+*.env
+
+
+config.yaml
+
+compose.local.yaml
+
+.env
+proto/**.go
+
+#binary names
+email-marketing-backend
+app
+
+
+internal/config/*
+!internal/config/*.example
+!internal/config/*.go
+api/v1/proto/*.go
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

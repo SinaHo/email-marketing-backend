@@ -1,0 +1,108 @@
+// internal/handler/user_handler.go
+package handler
+
+import (
+	"context"
+	"errors"
+
+	"github.com/golang/protobuf/ptypes"
+	"go.uber.org/zap"
+
+	"github.com/SinaHo/email-marketing-backend/api/v1/proto"
+	"github.com/SinaHo/email-marketing-backend/internal/service"
+)
+
+type UserHandler struct {
+	proto.UnimplementedUserServiceServer
+	svc    service.UserService
+	logger *zap.SugaredLogger
+}
+
+func NewUserHandler(svc service.UserService, logger *zap.SugaredLogger) *UserHandler {
+	return &UserHandler{svc: svc, logger: logger}
+}
+
+func (h *UserHandler) CreateUser(ctx context.Context, req *proto.CreateUserRequest) (*proto.CreateUserResponse, error) {
+	h.logger.Infof("CreateUser called with name=%s, email=%s", req.Name, req.Email)
+	u, err := h.svc.CreateUser(ctx, req.Name, req.Email)
+	if err != nil {
+		h.logger.Errorf("CreateUser error: %v", err)
+		return nil, err
+	}
+
+	ts, err := ptypes.TimestampProto(u.CreatedAt)
+	if err != nil {
+		h.logger.Errorf("Error converting timestamp: %v", err)
+		return nil, err
+	}
+
+	return &proto.CreateUserResponse{
+		User: &proto.User{
+			Id:        u.ID,
+			Name:      u.Name,
+			Email:     u.Email,
+			CreatedAt: ts,
+		},
+	}, nil
+}
+
+func (h *UserHandler) GetUser(ctx context.Context, req *proto.GetUserRequest) (*proto.GetUserResponse, error) {
+	h.logger.Infof("GetUser called with id=%s", req.Id)
+	u, err := h.svc.GetUser(ctx, req.Id)
+	if err != nil {
+		h.logger.Errorf("GetUser error: %v", err)
+		return nil, err
+	}
+	ts, err := ptypes.TimestampProto(u.CreatedAt)
+	if err != nil {
+		h.logger.Errorf("Error converting timestamp: %v", err)
+		return nil, err
+	}
+	return &proto.GetUserResponse{
+		User: &proto.User{
+			Id:        u.ID,
+			Name:      u.Name,
+			Email:     u.Email,
+			CreatedAt: ts,
+		},
+	}, nil
+}
+
+func (h *UserHandler) ListUsers(ctx context.Context, req *proto.ListUsersRequest) (*proto.ListUsersResponse, error) {
+	h.logger.Infof("ListUsers called with page_size=%d, page_number=%d", req.PageSize, req.PageNumber)
+	list, err := h.svc.ListUsers(ctx, req.PageSize, req.PageNumber)
+	if err != nil {
+		h.logger.Errorf("ListUsers error: %v", err)
+		return nil, err
+	}
+
+	var protoUsers []*proto.User
+	for _, u := range list {
+		ts, err := ptypes.TimestampProto(u.CreatedAt)
+		if err != nil {
+			h.logger.Errorf("Error converting timestamp: %v", err)
+			return nil, err
+		}
+		protoUsers = append(protoUsers, &proto.User{
+			Id:        u.ID,
+			Name:      u.Name,
+			Email:     u.Email,
+			CreatedAt: ts,
+		})
+	}
+
+	return &proto.ListUsersResponse{Users: protoUsers}, nil
+}
+
+func (h *UserHandler) DeleteUser(ctx context.Context, req *proto.DeleteUserRequest) (*proto.DeleteUserResponse, error) {
+	h.logger.Infof("DeleteUser called with id=%s", req.Id)
+	err := h.svc.DeleteUser(ctx, req.Id)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidEmail) {
+			return nil, err
+		}
+		h.logger.Errorf("DeleteUser error: %v", err)
+		return &proto.DeleteUserResponse{Success: false}, nil
+	}
+	return &proto.DeleteUserResponse{Success: true}, nil
+}

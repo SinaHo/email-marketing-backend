@@ -1,0 +1,37 @@
+# docker-compose.yml
+
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: myservice-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  myservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: myservice
+    depends_on:
+      - db
+    ports:
+      - "50051:50051"
+    environment:
+      - DB_DRIVER=postgres
+      - DB_DATASOURCE=host=db port=5432 user=postgres password=postgres dbname=mydb sslmode=disable
+      - LOG_LEVEL=debug
+      - LOG_FORMAT=json
+      - JWT_SECRET=supersecretkey123
+    volumes:
+      - ./internal/config/config.yaml:/etc/myservice/config.yaml:ro
+
+volumes:
+  db_data:
